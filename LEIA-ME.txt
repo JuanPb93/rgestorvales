@@ -1,25 +1,32 @@
-GESTOR DE VALES v1.2.4 — Meneses e Meneses Ltda.
+GESTOR DE VALES v1.3 — Meneses e Meneses Ltda.
 
-COMO PUBLICAR NO GITHUB PAGES
-1. Extraia o ZIP.
-2. Envie index.html, style.css e app.js para a raiz do repositório.
-3. Ative GitHub Pages em Settings > Pages, se necessário.
-4. Abra o site e importe os funcionários pelo botão "Importar cadastro".
-5. Não publique os arquivos privados de cadastro com nomes de funcionários.
+ATUALIZAÇÃO PARA GITHUB PAGES
+1. Faça uma cópia de segurança dos dados na versão anterior (botão "Salvar backup").
+2. Extraia o ZIP e substitua index.html, style.css e app.js no MESMO repositório.
+3. Não mude o endereço publicado: o armazenamento do navegador depende da origem (domínio/protocolo).
+4. Abra o Gestor de Vales normalmente. Os funcionários cadastrados na versão anterior permanecem salvos no mesmo navegador, mas os dias iniciarão zerados.
 
-ALTERAÇÕES v1.2.4
-- Cabeçalho com V+ mais visível e contrastante.
-- Removida a faixa de indicadores resumidos.
-- Seção Documentos compacta: emissão do dia 20, mês automático com seleção e ano ajustável.
-- Dois botões: "Emitir Recibos em Word" (download DOCX) e "Emitir Recibos em PDF" (janela de impressão para imprimir/salvar PDF).
-- Removida a opção inferior de restaurar backup JSON; permanece "Importar cadastro" e "Salvar backup".
-- A cada F5/Ctrl+R/nova abertura, todos os dias do calendário e lançamentos de recibos são zerados no formulário.
-- Os funcionários, valores individuais, empresa e configurações permanentes permanecem no localStorage do mesmo navegador e endereço do site.
-- A sessão anterior pode ser restaurada manualmente por até 1 hora após a última alteração. O botão aparece somente quando há dias disponíveis para recuperação.
-- "Salvar lote atual"/"Repetir último lote salvo" também funcionam em janela temporária de 1 hora.
+COMO UTILIZAR
+- Selecione os dias no calendário principal e clique em "Aplicar e escolher funcionários" para distribuir o mesmo grupo de dias a vários colaboradores.
+- Clique no nome de um funcionário para abrir seu mini calendário. Navegue nos meses, marque/desmarque os dias e clique em "Aplicar alterações" para gravar SOMENTE os dias dele.
+- Alterações feitas no mini calendário não interferem nos demais funcionários e não são registradas até confirmar. Fechar o cartão sem aplicar descarta a edição provisória.
+- Emitir Recibos em Word gera DOCX; Emitir Recibos em PDF abre a janela de impressão do navegador (opção Salvar como PDF).
+- O dia de emissão do recibo é sempre 20; o mês e o ano abrem com os valores atuais e podem ser ajustados na seção de documentos.
 
-IMPORTANTE
-O armazenamento do GitHub Pages é local ao navegador. Não existe sincronização entre PCs e perfis.
-Faça backups periódicos em JSON, especialmente antes de limpar os dados do navegador.
-A opção "Emitir Recibos em PDF" usa a impressão nativa; para PDF escolha "Salvar como PDF".
-O documento Word segue o modelo de recibo já aprovado. A data embaixo da assinatura sempre cai no dia 20.
+O QUE MUDOU
+- Removidos: área "Empresa, valores diários e feriados", botões de gerenciamento de lotes e explicação abaixo, inclusão/importação/remoção de funcionários, campos de férias e descontos, edição de nome e valores, e botão "Mês atual".
+- Lista de funcionários fixa: não é possível cadastrar ou excluir pessoas pela interface.
+- Valor diário fixo: R$ 8,00 de transporte + R$ 10,00 de alimentação.
+- Mini calendário por funcionário com botão "Aplicar alterações".
+- Mantidos: recibo Word individual, emissão em lote Word, impressão/PDF, cadastros em armazenamento local e recuperação dos lançamentos por 1 hora após a última alteração.
+
+IMPORTANTE — CADASTRO FIXO E PRIVACIDADE
+Os nomes dos funcionários NÃO estão dentro do código público do ZIP, para evitar exposição no GitHub Pages.
+O sistema utiliza os cadastros que já estavam salvos no navegador na mesma URL.
+Em um navegador novo, onde nunca houve cadastro, a lista ficará vazia. Antes de adotar esta versão num computador novo, primeiro abra a versão anterior no endereço definitivo, importe o seu arquivo de cadastro privado e só depois atualize para a v1.3. Como não há botão de importação na v1.3, a configuração inicial em um navegador novo deve ser feita pela versão anterior.
+Não publique JSON de cadastro ou backups no repositório público.
+
+SEGURANÇA DOS LANÇAMENTOS
+- F5, Ctrl+R ou nova abertura zera os lançamentos exibidos, mas não apaga o cadastro de funcionários.
+- A sessão anterior só retorna clicando em "Recuperar sessão", disponível por até 1 hora após a última alteração salva.
+- Os dados locais não sincronizam entre diferentes navegadores/computadores e podem ser removidos ao limpar o armazenamento do site. Faça backups dos cadastros quando necessário.

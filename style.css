@@ -119,3 +119,22 @@ body.modal-open{overflow:hidden}
  .document-row .emissao-reset{grid-column:1 / -1;width:100%;min-height:38px}
  .document-row .emissao-preview{grid-column:1 / -1;width:100%;text-align:left}
 }
+
+/* v1.3 - mini calendário independente com confirmação explícita */
+.mini-calendar{border:1px solid #d0e5e1;background:#f5fbf9;border-radius:12px;padding:17px 18px;margin-top:14px;max-width:780px}
+.mini-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.mini-heading strong{display:block;font-size:14px;color:#164d49}
+.mini-heading small{display:block;font-size:11px;color:#718c88;margin-top:2px}
+.mini-month-nav{display:flex;align-items:center;gap:10px}
+.mini-month-nav b{font-size:13px;text-align:center;min-width:143px;color:#183e52}
+.mini-nav{font-size:24px;line-height:1;padding:0;width:33px;height:33px;flex:none}
+.mini-weekdays,.mini-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;max-width:610px}
+.mini-weekdays{margin-bottom:6px}.mini-weekdays span{text-align:center;color:#768c9a;font-size:11px;font-weight:700;padding:4px 0}
+.mini-cal-pad{display:block}.mini-day{display:grid;place-items:center;aspect-ratio:1.15 / 1;min-height:32px;border:1px solid #dbe7ed;border-radius:7px;color:#27475a;font-family:inherit;font-weight:650;font-size:12px;background:white;cursor:pointer}
+.mini-day.weekend{background:#ebf0f3;color:#718795}.mini-day.selected{background:#0c8076;color:white;border-color:#0c8076;box-shadow:0 2px 6px rgba(0,130,113,.12)}
+.mini-day:hover{border-color:#0b877a}.mini-day:focus-visible{outline:2px solid #0b877a;outline-offset:2px}
+.mini-stats{margin-top:14px;font-size:12px;font-weight:750;color:#164d49;line-height:1.5}
+.mini-feedback{margin:5px 0 14px;font-size:11px;color:#6e8c89}.mini-feedback.unsaved{color:#a15d1e;font-weight:700}
+.mini-footer{display:flex;align-items:center;gap:13px;flex-wrap:wrap}.mini-footer>span{color:#849b9b;font-size:11px}
+.worker-footer{border-top:1px solid #e6efee;padding-top:14px;margin-top:17px}
+@media(max-width:660px){.mini-calendar{padding:13px 10px}.mini-heading{align-items:flex-start;flex-direction:column;gap:9px}.mini-weekdays,.mini-grid{gap:3px}.mini-day{min-height:31px;aspect-ratio:1/1;font-size:11px}.mini-month-nav{width:100%;justify-content:space-between}.mini-month-nav b{flex:1;min-width:0}.mini-footer .btn{flex:1}.mini-footer>span{width:100%}}

@@ -16,7 +16,7 @@
 
     <main>
       <section class="hero">
-        <div><p class="eyebrow">CONTROLE DE BENEFÍCIOS</p><h1>Vales calculados, recibos prontos.</h1><p class="subtitle">Conte os dias por funcionário, ajuste férias e gere recibos com valores corretos, sem precisar editar cada documento no Word.</p></div>
+        <div><p class="eyebrow">CONTROLE DE BENEFÍCIOS</p><h1>Vales calculados, recibos prontos.</h1><p class="subtitle">Selecione os dias por funcionário e gere recibos com valores corretos, sem editar cada documento no Word.</p></div>
         <div class="hero-chip"><span>Valor padrão por dia</span><strong id="hero-total">R$ 18,00</strong><small id="hero-detail">R$ 8,00 transporte + R$ 10,00 alimentação</small></div>
       </section>
 
@@ -26,7 +26,7 @@
         <div class="recovery-actions"><button class="btn primary" type="button" id="btn-recover-session">Recuperar sessão</button><button class="btn light" type="button" id="btn-dismiss-session">Descartar</button></div>
       </section>
       <section class="panel settings" id="painel-calendario">
-        <div class="panel-header"><div><p class="eyebrow">01 · DEFINIR DIAS</p><h2>Selecione os dias no calendário</h2><p>Marque cada dia que deve ser pago. É possível navegar entre meses sem perder a seleção.</p></div><span class="info-tag">R$ 18,00 / dia · editável</span></div>
+        <div class="panel-header"><div><p class="eyebrow">01 · DEFINIR DIAS</p><h2>Selecione os dias no calendário</h2><p>Marque cada dia que deve ser pago. É possível navegar entre meses sem perder a seleção.</p></div><span class="info-tag">R$ 18,00 / dia</span></div>
         <div class="calendar-layout">
           <div class="calendar-side">
             <div class="calendar-month-head"><button type="button" class="btn calendar-nav" id="mes-anterior" aria-label="Mês anterior">‹</button><h3 id="calendar-month-label">Novembro de 2026</h3><button type="button" class="btn calendar-nav" id="mes-proximo" aria-label="Próximo mês">›</button></div>
@@ -47,27 +47,12 @@
         </div>
         <div id="individual-context" class="individual-context" hidden></div>
         <div class="distribution-status" id="distribution-status"></div>
-        <details class="general-details"><summary>⚙ Empresa, valores diários e feriados</summary>
-          <div class="field-grid">
-            <label class="field span-2">Empresa<input id="empresa" type="text" autocomplete="off"></label>
-            <label class="field">Cidade / UF<input id="cidade" type="text" autocomplete="off"></label>
-            
-            <label class="field">VT por dia (R$)<input id="vt" type="text" inputmode="decimal"></label>
-            <label class="field">Auxílio-alimentação por dia (R$)<input id="aa" type="text" inputmode="decimal"></label>
-            <label class="field span-2">Texto do benefício no recibo<input id="descricao" type="text"></label>
-            <label class="field span-2">Feriados / dias a excluir para todos <small>Uma data por linha. Datas excluídas não serão pagas mesmo que estejam marcadas no calendário.</small><textarea id="feriados" rows="2" placeholder="Ex.: 25/12/2026"></textarea></label>
-          </div>
-        </details>
-        <div class="actions wrap"><button class="btn light" id="btn-proximo">Iniciar novo lote</button><button class="btn light" id="btn-repetir">Repetir último lote salvo</button><button class="btn light" id="btn-salvar">Salvar lote atual</button></div>
-        <p class="hint">A distribuição só acontece depois de clicar em <b>Aplicar</b> e confirmar os funcionários. Quem não for escolhido permanece pendente. O recibo mostrará o primeiro e o último dia selecionados para cada pessoa.</p>
       </section>
 
       <section class="panel workers">
-        <div class="panel-header employee-head"><div><p class="eyebrow">02 · CONTROLE INDIVIDUAL</p><h2>Funcionários</h2><p>Veja quem já recebeu uma seleção de dias e ajuste os funcionários restantes separadamente.</p></div><div class="actions wrap" style="margin-top:0"><button class="btn light" id="btn-import-top">Importar cadastro</button><button class="btn primary" id="btn-add">+ Adicionar funcionário</button></div></div>
-        <p class="employee-help">Clique em <b>+ Adicionar funcionário</b> para incluir uma pessoa. Para excluir, abra o cadastro pelo nome e use <b>Excluir funcionário</b>.</p>
+        <div class="panel-header employee-head"><div><p class="eyebrow">02 · CONTROLE INDIVIDUAL</p><h2>Funcionários</h2><p>Consulte os dias de cada funcionário e altere diretamente no mini calendário individual.</p></div></div>
         <div class="toolbar"><label class="search"><span>⌕</span><input id="search" placeholder="Buscar funcionário por nome..."></label><div class="toolbar-right"><label class="select-all"><input type="checkbox" id="select-all"> Incluir todos na exportação</label><span id="workers-label" class="small-count"></span></div></div>
         <div class="employee-filter-row"><button type="button" class="filter-pill active" data-filter="all">Todos</button><button type="button" class="filter-pill" data-filter="pending">Pendentes</button><button type="button" class="filter-pill" data-filter="assigned">Dias definidos</button></div><div id="employee-list" class="employee-list"></div>
-        <div class="actions"><button class="btn light" id="btn-add-bottom">+ Novo funcionário</button></div>
       </section>
 
       <section class="panel exports">
@@ -86,7 +71,6 @@
               <label class="emissao-field emissao-ano" for="emissao-ano">Ano
                 <input id="emissao-ano" type="number" min="1900" max="2100" step="1" inputmode="numeric" aria-label="Ano de emissão">
               </label>
-              <button type="button" class="btn light emissao-reset" id="btn-emissao-atual" title="Restaurar mês e ano atuais automaticamente">Mês atual</button>
               <small id="emissao-preview" class="emissao-preview" aria-live="polite"></small>
             </div>
           </div>
@@ -96,10 +80,9 @@
             <p class="document-note">PDF: abre a janela de impressão para imprimir ou salvar em PDF.</p>
           </div>
         </div>
-        <input id="file-import" type="file" accept=".json,application/json" hidden>
       </section>
       </div>
-      <footer><span>Gestor de Vales · v1.2.4</span><span>Uso interno · Meneses e Meneses Ltda.</span></footer>
+      <footer><span>Gestor de Vales · v1.3</span><span>Uso interno · Meneses e Meneses Ltda.</span></footer>
     </main>
   </div>
   <div class="modal-backdrop" id="modal-aplicar" hidden>

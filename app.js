@@ -8,9 +8,11 @@ const PREVIOUS_LOT_KEY = 'gestor_vales_v1_1_ultimo_lote';
 const OLD_LOT_KEY = 'gestor_vales_v1_ultimo_lote';
 const DRAFT_KEY = 'gestor_vales_recuperacao_1h_v1';
 const DRAFT_DURATION_MS = 60 * 60 * 1000;
+const FIXED_VT = '8,00';
+const FIXED_AA = '10,00';
 // GitHub Pages: use localStorage no navegador do usuário; NÃO há sincronização entre PCs.
-// Não incluir nomes reais no código público: importe o cadastro privado pelo botão 'Importar cadastro'.
-const NOMES_MODELO = [];
+// Por privacidade, nomes não ficam no código publicado. A lista fixa é recuperada do armazenamento já existente no mesmo site.
+const NOMES_MODELO = []; // Lista original permanece apenas no navegador do usuário.
 const SCHEDULES = {semana:[1,2,3,4,5],sabado:[1,2,3,4,5,6],todos:[0,1,2,3,4,5,6]};
 const $ = (selector) => document.querySelector(selector);
 const byId = (id) => document.getElementById(id);
@@ -42,7 +44,7 @@ function makeEmployee(name,config){return {id:idNovo(),nome:name,active:false,st
 function defaultState(){const mes=hojeISO().slice(0,7),inicio=mes+'-21',fim=shiftMonth(inicio).slice(0,7)+'-20';const config={empresa:'Meneses e Meneses Ltda.',cidade:'Teresina/PI',emissao:mes+'-20',emissaoAuto:true,inicio,fim,mesCalendario:mes,diasLote:[],vt:'8,00',aa:'10,00',descricao:'vale refeição e vale transporte',feriados:''};return {schemaVersion:2,config,employees:NOMES_MODELO.map(n=>makeEmployee(n,config))};}
 function validateState(candidate,asInitial=false){
  if(!candidate||!candidate.config||!Array.isArray(candidate.employees))throw new Error('Backup sem estrutura válida.');
- const base=defaultState();const config={...base.config,...candidate.config};
+ const base=defaultState();const config={...base.config,...candidate.config,vt:FIXED_VT,aa:FIXED_AA};
  // Emissão: sempre dia 20. Até que o usuário escolha outro mês/ano, acompanha automaticamente o calendário atual.
  if(config.emissaoAuto!==false){config.emissaoAuto=true;config.emissao=hojeISO().slice(0,7)+'-20';}
  else if(!dateUTC(config.emissao)){config.emissaoAuto=true;config.emissao=hojeISO().slice(0,7)+'-20';}
@@ -51,7 +53,7 @@ function validateState(candidate,asInitial=false){
  if(!/^\d{4}-\d{2}$/.test(config.mesCalendario))config.mesCalendario=String(config.inicio||'2026-11').slice(0,7);
  config.diasLote=Array.isArray(config.diasLote)?uniqueDates(config.diasLote):[];
  const employees=candidate.employees.map(x=>{
-   const emp={...makeEmployee('',config),...x,id:typeof x.id==='string'?x.id:idNovo()};
+   const emp={...makeEmployee('',config),...x,id:typeof x.id==='string'?x.id:idNovo(),vt:FIXED_VT,aa:FIXED_AA};
    if(asInitial){emp.statusDistribuicao='pendente';emp.diasSelecionados=[];emp.active=false;emp.descontos='0';emp.diasManual='';emp.feriasInicio='';emp.feriasFim='';}
    else{emp.statusDistribuicao=x.statusDistribuicao==='pendente'?'pendente':'definido';emp.active=!!x.active&&emp.statusDistribuicao==='definido';emp.diasSelecionados=Array.isArray(x.diasSelecionados)?uniqueDates(x.diasSelecionados):null;}
    return emp;
@@ -92,6 +94,8 @@ function loadState(){
  let original=null;
  try{for(const key of [STORE_KEY,PREVIOUS_STORE_KEY,OLD_STORE_KEY]){const raw=localStorage.getItem(key);if(raw){original=validateState(JSON.parse(raw));break;}}}catch(e){console.warn(e);}
  const current=original||defaultState();
+ // Cada nova abertura começa mostrando o mês e ano atuais da emissão; o dia permanece 20.
+ current.config.emissaoAuto=true;current.config.emissao=hojeISO().slice(0,7)+'-20';
  try{
   // Na primeira atualização da v1.2.3, conserva o lote antigo como recuperação por 1 hora.
   if(original&&!readTimed(DRAFT_KEY)&&meaningfulDraft(createDraft(original)))timedSave(DRAFT_KEY,createDraft(original));
@@ -100,7 +104,7 @@ function loadState(){
  return permanentOnly(current);
 }
 let state=loadState();
-let calendarIndividualId=null;
+const miniDrafts=new Map();
 let employeeFilter='all';
 let modalSelection=new Set();
 let sessionTouched=false;
@@ -117,9 +121,10 @@ function renderRecoveryBanner(){
 }
 function applyDraft(draft){
  if(!draft || !draft.config || !Array.isArray(draft.employees))throw new Error('Sessão sem dados válidos.');
+ miniDrafts.clear();
  state.config.diasLote=uniqueDates(draft.config.diasLote||[]);
  if(/^\d{4}-(0[1-9]|1[0-2])$/.test(draft.config.mesCalendario||''))state.config.mesCalendario=draft.config.mesCalendario;
- state.config.feriados=texto(draft.config.feriados);
+ state.config.feriados=''; // Feriados da interface antiga não interferem mais no cálculo.
  if(dateUTC(draft.config.inicio))state.config.inicio=draft.config.inicio;
  if(dateUTC(draft.config.fim))state.config.fim=draft.config.fim;
  const byIdSaved=new Map(draft.employees.map(e=>[e.id,e]));
@@ -130,9 +135,7 @@ function applyDraft(draft){
   if(dateUTC(prior.inicio))emp.inicio=prior.inicio;
   if(dateUTC(prior.fim))emp.fim=prior.fim;
   emp.active=emp.statusDistribuicao==='definido'&&!!prior.active;
-  emp.feriasInicio=texto(prior.feriasInicio);emp.feriasFim=texto(prior.feriasFim);
-  emp.descontos=texto(prior.descontos||'0');emp.diasManual=texto(prior.diasManual);
-  emp.observacao=texto(prior.observacao);
+  emp.feriasInicio='';emp.feriasFim='';emp.descontos='0';emp.diasManual='';emp.observacao='';
  }
 }
 function persist(){
@@ -186,8 +189,7 @@ function renderCalendar(){
   byId('calendar-range').textContent=count?sameDaySpan(dates):'Escolha os dias diretamente no calendário.';
   byId('calendar-vt').textContent=brl(vt);byId('calendar-aa').textContent=brl(aa);byId('calendar-total').textContent=brl(vt+aa);
   const preview=byId('calendar-days-preview');preview.textContent=count?`${count} datas marcadas · ${count-payable} excluída(s) como feriado`:'Ainda não há dias marcados.';
-  const ctx=byId('individual-context');const emp=state.employees.find(e=>e.id===calendarIndividualId);
-  ctx.hidden=!emp;ctx.innerHTML=emp?`<span>✎ Editando os dias de <b>${htmlEscape(emp.nome)}</b>. Ajuste no calendário e clique em Aplicar.</span> <button class="btn light" id="btn-cancel-individual" type="button">Sair do modo individual</button>`:'';
+  const ctx=byId('individual-context');if(ctx){ctx.hidden=true;ctx.innerHTML='';}
   updateDistribution();
 }
 function changeMonth(amount){const [y,m]=calendarMonth().split('-').map(Number),d=new Date(Date.UTC(y,m-1+amount,1));state.config.mesCalendario=dateISO(d).slice(0,7);persist();renderCalendar();}
@@ -222,28 +224,90 @@ function updateTotals(){
  }
  labels();updateDistribution();
 }
+function miniInitialDates(emp){
+ return assigned(emp)?(Array.isArray(emp.diasSelecionados)?uniqueDates(emp.diasSelecionados):eligibleDays(emp)):[];
+}
+function ensureMiniDraft(emp){
+ if(!miniDrafts.has(emp.id)){
+  const dates=miniInitialDates(emp),month=(dates.length?dates[0].slice(0,7):calendarMonth());
+  miniDrafts.set(emp.id,{dates:[...dates],month});
+ }
+ return miniDrafts.get(emp.id);
+}
+function shiftMiniMonth(ym,amount){
+ const [year,month]=ym.split('-').map(Number);
+ const d=new Date(Date.UTC(year,month-1+amount,1,12));
+ return dateISO(d).slice(0,7);
+}
+function renderMiniCalendar(emp){
+ const card=[...document.querySelectorAll('[data-worker-id]')].find(x=>x.dataset.workerId===emp.id);
+ if(!card||!card.open)return;
+ const draft=ensureMiniDraft(emp),root=card.querySelector('.mini-calendar');if(!root)return;
+ const [y,m]=draft.month.split('-').map(Number),first=new Date(Date.UTC(y,m-1,1,12)),start=first.getUTCDay(),last=new Date(Date.UTC(y,m,0,12)).getUTCDate();
+ const monthName=first.toLocaleDateString('pt-BR',{timeZone:'UTC',month:'long',year:'numeric'}).replace(/^./,x=>x.toUpperCase());
+ root.querySelector('.mini-month-label').textContent=monthName;
+ const chosen=new Set(draft.dates);let buttons='';
+ for(let i=0;i<start;i++)buttons+='<span class="mini-cal-pad" aria-hidden="true"></span>';
+ for(let d=1;d<=last;d++){
+  const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const on=chosen.has(iso),weekend=[0,6].includes(new Date(Date.UTC(y,m-1,d,12)).getUTCDay());
+  buttons+=`<button type="button" class="mini-day${on?' selected':''}${weekend?' weekend':''}" data-action="mini-day" data-date="${iso}" aria-pressed="${on}" aria-label="${fmtDate(iso)}${on?' selecionado':''}">${d}</button>`;
+ }
+ root.querySelector('.mini-grid').innerHTML=buttons;
+ const total=draft.dates.length;const old=miniInitialDates(emp);
+ const modified=total!==old.length||draft.dates.some((d,i)=>d!==old[i]);
+ root.querySelector('.mini-stats').textContent=`${total} ${total===1?'dia selecionado':'dias selecionados'} · ${brl(total*800)} transporte + ${brl(total*1000)} alimentação = ${brl(total*1800)}`;
+ root.querySelector('.mini-feedback').textContent=modified?'Alterações não aplicadas. Clique em Aplicar alterações para registrar.':'Dias registrados. Você pode marcar ou desmarcar datas.';
+ root.querySelector('.mini-feedback').classList.toggle('unsaved',modified);
+}
+function commitIndividualDays(emp,requestedDates){
+ // Só esta função altera os dias efetivos do funcionário; clicar no mini calendário não altera estado nem valores.
+ const dates=uniqueDates(requestedDates);
+ emp.diasSelecionados=[...dates];emp.statusDistribuicao=dates.length?'definido':'pendente';emp.active=dates.length>0;
+ if(dates.length){emp.inicio=dates[0];emp.fim=dates[dates.length-1];}
+ emp.vt=FIXED_VT;emp.aa=FIXED_AA;emp.feriasInicio='';emp.feriasFim='';emp.descontos='0';emp.diasManual='';emp.observacao='';
+ return dates;
+}
+function applyMiniCalendar(emp){
+ const draft=miniDrafts.get(emp.id);if(!draft)return;
+ const dates=commitIndividualDays(emp,draft.dates);
+ miniDrafts.delete(emp.id);persist();renderEmployees(emp.id);
+ toast(dates.length?`${dates.length} dia(s) de ${emp.nome} registrado(s).`:`Os dias de ${emp.nome} foram removidos; funcionário pendente.`);
+}
 function renderEmployees(openId){
- const term=normalizar(byId('search').value||'');const visible=state.employees.filter(e=>normalizar(e.nome).includes(term)&&(employeeFilter==='all'||(employeeFilter==='pending'?!assigned(e):assigned(e))));
- byId('employee-list').innerHTML=visible.length?visible.map(e=>{const c=calcEmp(e),esc=htmlEscape,status=assigned(e);const chosen=periodDates(e);
- return `<details class="worker ${e.active?'is-active':''}" data-worker-id="${esc(e.id)}" ${openId===e.id?'open':''}>
-  <summary class="worker-summary"><input class="employee-check" type="checkbox" data-key="active" ${e.active?'checked':''} ${!status?'disabled':''} aria-label="Incluir ${esc(e.nome)} na exportação"><div class="worker-label"><strong>${esc(e.nome)}</strong><small>${status?(chosen.length?sameDaySpan(chosen):`${fmtDate(e.inicio)} a ${fmtDate(e.fim)}`):'Pendente · escolha os dias no calendário'}</small><span class="status-pill ${status?'done':'pending'}">${status?'✓ Dias definidos':'● Pendente'}</span></div><div class="worker-counters"><div class="worker-days"><b>${c.dias}</b> dias</div><div class="worker-total">${brl(c.total)}</div></div><span class="worker-chevron">⌄</span></summary>
-  <div class="worker-body"><p class="worker-date-note">${status?(chosen.length?`Dias marcados: <b>${esc(chosen.map(fmtDate).join(', '))}</b>`:`Cadastro anterior: ${fmtDate(e.inicio)} a ${fmtDate(e.fim)}`):'Ainda não há dias atribuídos a este funcionário.'}</p>
-   <div class="actions worker-calendar-actions"><button type="button" class="btn primary" data-action="calendar">${status?'Editar dias deste funcionário':'Definir dias deste funcionário no calendário'}</button>${status?'<button type="button" class="btn light" data-action="clear-days">Voltar para pendente</button>':''}</div>
-   <div class="worker-grid">
-    <label class="field span-2">Nome completo<input type="text" data-key="nome" value="${esc(e.nome)}" required></label>
-    <label class="field">VT por dia (R$)<input type="text" inputmode="decimal" data-key="vt" value="${esc(e.vt)}"></label>
-    <label class="field">Auxílio-alimentação por dia (R$)<input type="text" inputmode="decimal" data-key="aa" value="${esc(e.aa)}"></label>
-    <label class="field">Férias: início <input type="date" data-key="feriasInicio" value="${esc(e.feriasInicio)}"></label>
-    <label class="field">Férias: fim <input type="date" data-key="feriasFim" value="${esc(e.feriasFim)}"></label>
-    <label class="field">Outros dias a descontar<input type="number" min="0" step="1" data-key="descontos" value="${esc(e.descontos)}"><small class="tiny">Faltas ou outros ajustes</small></label>
-    <label class="field">Dias manuais (opcional)<input type="number" min="0" step="1" data-key="diasManual" value="${esc(e.diasManual)}" placeholder="Automático"><small class="tiny">Se preenchido, substitui a contagem</small></label>
-    <label class="field span-2">Observação interna<input type="text" data-key="observacao" value="${esc(e.observacao)}" placeholder="Opcional; aparece só no resumo CSV"></label>
-   </div><div class="worker-footer"><div class="worker-breakdown">VT <b>${brl(c.vt)}</b> · Alimentação <b>${brl(c.aa)}</b> · Total <b>${brl(c.total)}</b></div><div class="actions" style="margin-top:0"><button type="button" class="btn light" data-action="individual" ${status?'':'disabled'}>Baixar recibo Word</button><button type="button" class="btn danger" data-action="delete">Excluir funcionário</button></div></div>
-  </div></details>`;}).join(''):'<p class="hint" style="padding:25px 6px">Nenhum funcionário nesta visualização. Altere o filtro ou importe um cadastro.</p>';
- document.querySelectorAll('.filter-pill').forEach(b=>b.classList.toggle('active',b.dataset.filter===employeeFilter));updateTotals();
+ const term=normalizar(byId('search').value||'');
+ const visible=state.employees.filter(e=>normalizar(e.nome).includes(term)&&(employeeFilter==='all'||(employeeFilter==='pending'?!assigned(e):assigned(e))));
+ const esc=htmlEscape;
+ byId('employee-list').innerHTML=visible.length?visible.map(e=>{
+  const c=calcEmp(e),status=assigned(e),chosen=periodDates(e);
+  return `<details class="worker ${e.active?'is-active':''}" data-worker-id="${esc(e.id)}" ${openId===e.id?'open':''}>
+   <summary class="worker-summary"><input class="employee-check" type="checkbox" data-key="active" ${e.active?'checked':''} ${!status?'disabled':''} aria-label="Incluir ${esc(e.nome)} na exportação">
+    <div class="worker-label"><strong>${esc(e.nome)}</strong><small>${status?(chosen.length?sameDaySpan(chosen):`${fmtDate(e.inicio)} a ${fmtDate(e.fim)}`):'Pendente · escolha os dias no mini calendário'}</small><span class="status-pill ${status?'done':'pending'}">${status?'✓ Dias definidos':'● Pendente'}</span></div>
+    <div class="worker-counters"><div class="worker-days"><b>${c.dias}</b> dias</div><div class="worker-total">${brl(c.total)}</div></div><span class="worker-chevron">⌄</span>
+   </summary>
+   <div class="worker-body">
+    <p class="worker-date-note">${status?`Dias confirmados: <b>${c.dias} ${c.dias===1?'dia':'dias'}</b> · ${esc(sameDaySpan(chosen))}`:'Ainda não há dias atribuídos a este funcionário.'}</p>
+    <div class="mini-calendar" aria-label="Calendário individual de ${esc(e.nome)}">
+     <div class="mini-heading"><div><strong>Calendário individual</strong><small>Selecione os dias deste funcionário.</small></div>
+      <div class="mini-month-nav"><button class="btn light mini-nav" data-action="mini-prev" type="button" aria-label="Mês anterior">‹</button><b class="mini-month-label"></b><button class="btn light mini-nav" data-action="mini-next" type="button" aria-label="Próximo mês">›</button></div></div>
+     <div class="mini-weekdays"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+     <div class="mini-grid"></div>
+     <div class="mini-stats" aria-live="polite"></div>
+     <p class="mini-feedback"></p>
+     <div class="mini-footer"><button type="button" class="btn primary" data-action="mini-apply">Aplicar alterações</button><span>Os demais funcionários não serão alterados.</span></div>
+    </div>
+    <div class="worker-footer"><div class="worker-breakdown">VT <b>${brl(c.vt)}</b> · Alimentação <b>${brl(c.aa)}</b> · Total <b>${brl(c.total)}</b></div>
+     <div class="actions" style="margin-top:0"><button type="button" class="btn light" data-action="individual" ${status?'':'disabled'}>Baixar recibo Word</button></div>
+    </div>
+   </div>
+  </details>`;
+ }).join(''):'<p class="hint" style="padding:25px 6px">Nenhum funcionário nesta visualização. Altere o filtro ou confira se o cadastro já está salvo neste navegador.</p>';
+ document.querySelectorAll('.filter-pill').forEach(b=>b.classList.toggle('active',b.dataset.filter===employeeFilter));
+ updateTotals();
+ if(openId){const emp=state.employees.find(e=>e.id===openId);if(emp)renderMiniCalendar(emp);}
 }
 
-function prepareExport(only){const people=only||selected();if(!people.length){toast('Defina os dias de ao menos um funcionário e inclua-o na exportação.');return null;}for(const p of people){if(!assigned(p)){toast('Defina os dias de '+p.nome+' no calendário antes de gerar recibo.');return null;}if(!texto(p.nome).trim()){toast('Preencha o nome de todos os funcionários incluídos.');return null;}const a=dateUTC(p.inicio),b=dateUTC(p.fim);if(!a||!b||a>b){toast('Corrija as datas de início/fim de '+p.nome+'.');return null;}if((p.feriasInicio&&!p.feriasFim)||(!p.feriasInicio&&p.feriasFim)){toast('Preencha as duas datas de férias de '+p.nome+'.');return null;}if(p.feriasInicio&&p.feriasFim&&(!dateUTC(p.feriasInicio)||!dateUTC(p.feriasFim)||p.feriasInicio>p.feriasFim)){toast('Corrija as datas de férias de '+p.nome+'.');return null;}}return people;}
+function prepareExport(only){const people=only||selected();if(!people.length){toast('Defina os dias de ao menos um funcionário e inclua-o na exportação.');return null;}for(const p of people){if(!assigned(p)){toast('Defina os dias de '+p.nome+' antes de gerar recibo.');return null;}if(!texto(p.nome).trim()){toast('Preencha o nome de todos os funcionários incluídos.');return null;}const a=dateUTC(p.inicio),b=dateUTC(p.fim);if(!a||!b||a>b){toast('Corrija as datas de início/fim de '+p.nome+'.');return null;}if((p.feriasInicio&&!p.feriasFim)||(!p.feriasInicio&&p.feriasFim)){toast('Preencha as duas datas de férias de '+p.nome+'.');return null;}if(p.feriasInicio&&p.feriasFim&&(!dateUTC(p.feriasInicio)||!dateUTC(p.feriasFim)||p.feriasInicio>p.feriasFim)){toast('Corrija as datas de férias de '+p.nome+'.');return null;}}return people;}
 function filename(s){return normalizar(s).toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,85)||'RECIBO';}
 function loteBase(){const vals=selected().flatMap(e=>Array.isArray(e.diasSelecionados)?e.diasSelecionados:[e.inicio,e.fim]).filter(dateUTC).sort();return vals.length?`${fmtDate(vals[0]).replaceAll('/','-')}_A_${fmtDate(vals.at(-1)).replaceAll('/','-')}`:'SEM_PERIODO';}
 function downloadBlob(content,name,type='application/octet-stream'){const b=content instanceof Blob?content:new Blob([content],{type});const url=URL.createObjectURL(b);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);}
@@ -314,7 +378,7 @@ function dataDeEmissao(){
   return dia;
 }
 function exportDocx(){const p=prepareExport();if(!p)return;const issued=dataDeEmissao();if(!issued)return;downloadBlob(makeDocx(p,issued),`RECIBOS_${loteBase()}.docx`,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');saveLot(true);toast(`Arquivo Word com ${p.length} recibo(s) gerado.`);}
-function exportIndividual(e){const p=prepareExport([e]);if(!p)return;const issued=dataDeEmissao();if(!issued)return;downloadBlob(makeDocx(p,issued),`RECIBO_${filename(e.nome)}_${loteBase()}.docx`,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');saveLot(true);toast('Recibo individual gerado.');}
+function exportIndividual(e){const p=prepareExport([e]);if(!p)return;const issued=dataDeEmissao();if(!issued)return;downloadBlob(makeDocx(p,issued),`RECIBO_${filename(e.nome)}_${fmtDate(receiptPeriod(e)[0]).replaceAll('/','-')}_A_${fmtDate(receiptPeriod(e)[1]).replaceAll('/','-')}.docx`,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');saveLot(true);toast('Recibo individual gerado.');}
 function exportCSV(){const p=prepareExport();if(!p)return;downloadBlob(csvContent(p),`RESUMO_VALES_${loteBase()}.csv`,'text/csv;charset=utf-8');saveLot(true);toast('Resumo CSV gerado.');}
 function exportZIP(){const p=prepareExport();if(!p)return;const issued=dataDeEmissao();if(!issued)return;const entries=[];entries.push([`RECIBOS_CONSOLIDADOS_${loteBase()}.docx`,makeDocx(p,issued)]);for(let i=0;i<p.length;i++){const e=p[i];entries.push([`RECIBOS_INDIVIDUAIS/${String(i+1).padStart(2,'0')}_${filename(e.nome)}.docx`,makeDocx([e],issued)]);}entries.push([`RESUMO_VALES_${loteBase()}.csv`,csvContent(p)]);entries.push(['BACKUP_LOTE.json',JSON.stringify(state,null,2)]);downloadBlob(makeZip(entries),`GESTOR_VALES_${loteBase()}.zip`,'application/zip');saveLot(true);toast(`Pacote pronto: ${p.length} recibos individuais, Word consolidado e resumo.`);}
 function openPrint(){const p=prepareExport();if(!p)return;const issueDate=dataDeEmissao();if(!issueDate)return;const w=window.open('','_blank');if(!w){toast('O navegador bloqueou a janela de impressão. Permita pop-ups para este site.');return;}
@@ -325,15 +389,14 @@ w.document.close();saveLot(true);toast('Janela de impressão aberta. Selecione �
 
 function modalCount(){const count=modalSelection.size;byId('modal-selection-count').textContent=`${count} funcionário(s) selecionado(s)`;byId('modal-confirmar').disabled=count===0;}
 function renderModal(){
- byId('modal-employee-list').innerHTML=state.employees.length?state.employees.map(e=>`<label class="modal-person"><input type="checkbox" data-modal-worker="${htmlEscape(e.id)}" ${modalSelection.has(e.id)?'checked':''}><span class="modal-person-name"><b>${htmlEscape(e.nome)}</b><small>${assigned(e)?'Já tem dias definidos · pode substituir com confirmação':'Pendente · sem dias definidos'}</small></span><span class="status-pill ${assigned(e)?'done':'pending'}">${assigned(e)?'Definido':'Pendente'}</span></label>`).join(''):'<p class="hint">Cadastre os funcionários antes de aplicar os dias.</p>';
+ byId('modal-employee-list').innerHTML=state.employees.length?state.employees.map(e=>`<label class="modal-person"><input type="checkbox" data-modal-worker="${htmlEscape(e.id)}" ${modalSelection.has(e.id)?'checked':''}><span class="modal-person-name"><b>${htmlEscape(e.nome)}</b><small>${assigned(e)?'Já tem dias definidos · pode substituir com confirmação':'Pendente · sem dias definidos'}</small></span><span class="status-pill ${assigned(e)?'done':'pending'}">${assigned(e)?'Definido':'Pendente'}</span></label>`).join(''):'<p class="hint">Nenhum funcionário cadastrado neste navegador.</p>';
  const count=calendarSelected().length;byId('modal-info').textContent=`${count} dia(s) marcado(s) no calendário · ${brl(calendarSelected().filter(d=>!holidaysSet().has(d)).length*(cents(state.config.vt)+cents(state.config.aa)))} por funcionário antes de ajustes individuais.`;modalCount();
 }
 function openApplyModal(){
  if(!calendarSelected().length){toast('Selecione pelo menos um dia no calendário.');return;}
- if(!state.employees.length){toast('Adicione ou importe os funcionários antes de aplicar.');return;}
+ if(!state.employees.length){toast('Nenhum funcionário salvo neste navegador. Verifique o cadastro antes de atualizar.');return;}
  modalSelection=new Set();
- if(calendarIndividualId&&state.employees.some(e=>e.id===calendarIndividualId))modalSelection.add(calendarIndividualId);
- else for(const e of state.employees.filter(e=>!assigned(e)))modalSelection.add(e.id);
+ for(const e of state.employees.filter(e=>!assigned(e)))modalSelection.add(e.id);
  renderModal();byId('modal-aplicar').hidden=false;document.body.classList.add('modal-open');byId('modal-confirmar').focus();
 }
 function closeApplyModal(){byId('modal-aplicar').hidden=true;document.body.classList.remove('modal-open');}
@@ -344,22 +407,13 @@ function confirmApply(){
  if(overwrite.length&&!window.confirm(`Você selecionou ${overwrite.length} funcionário(s) com dias já definidos. Substituir as datas antigas pelos ${dates.length} dias do calendário?`))return;
  let count=0;for(const e of state.employees){if(!modalSelection.has(e.id))continue;
    e.diasSelecionados=[...dates];e.inicio=dates[0];e.fim=dates[dates.length-1];e.statusDistribuicao='definido';e.active=true;
-   e.vt=state.config.vt;e.aa=state.config.aa;e.diasManual='';e.descontos='0';count++;
+   e.vt=FIXED_VT;e.aa=FIXED_AA;e.diasManual='';e.descontos='0';e.feriasInicio='';e.feriasFim='';e.observacao='';count++;
  }
- calendarIndividualId=null;closeApplyModal();persist();renderCalendar();renderEmployees();toast(`${dates.length} dias aplicados a ${count} funcionário(s). Os demais permanecem sem alteração.`);
+ miniDrafts.clear();closeApplyModal();persist();renderCalendar();renderEmployees();toast(`${dates.length} dias aplicados a ${count} funcionário(s). Os demais permanecem sem alteração.`);
 }
-function editEmployeeCalendar(person){
-  calendarIndividualId=person.id;
-  const days=Array.isArray(person.diasSelecionados)?person.diasSelecionados:eligibleDays(person);
-  state.config.diasLote=[...days];
-  if(days.length)state.config.mesCalendario=days[0].slice(0,7);
-  persist();renderCalendar();byId('painel-calendario').scrollIntoView({behavior:'smooth',block:'start'});
-  toast(`Ajuste os dias de ${person.nome} e clique em Aplicar.`);
-}
-function clearEmployee(person){if(!window.confirm(`Deixar ${person.nome} pendente, sem dias definidos?`))return;person.statusDistribuicao='pendente';person.diasSelecionados=[];person.active=false;person.diasManual='';person.descontos='0';if(calendarIndividualId===person.id)calendarIndividualId=null;persist();renderEmployees();renderCalendar();toast('Funcionário movido para pendentes.');}
 function bind(){
  fillSettings();renderEmployees();renderRecoveryBanner();
-  byId('btn-recover-session').addEventListener('click',()=>{const saved=readTimed(DRAFT_KEY);if(!saved||!meaningfulDraft(saved.draft)){renderRecoveryBanner();toast('O prazo da sessão anterior terminou.');return;}applyDraft(saved.draft);sessionTouched=true;calendarIndividualId=null;fillSettings();persist();renderEmployees();toast('Sessão recuperada com os dias e funcionários da última atividade.');});
+  byId('btn-recover-session').addEventListener('click',()=>{const saved=readTimed(DRAFT_KEY);if(!saved||!meaningfulDraft(saved.draft)){renderRecoveryBanner();toast('O prazo da sessão anterior terminou.');return;}applyDraft(saved.draft);sessionTouched=true;fillSettings();persist();renderEmployees();toast('Sessão recuperada com os dias e funcionários da última atividade.');});
   byId('btn-dismiss-session').addEventListener('click',()=>{try{localStorage.removeItem(DRAFT_KEY);}catch(e){}renderRecoveryBanner();toast('Recuperação anterior descartada.');});
   setInterval(renderRecoveryBanner,30000);
  const alterarEmissao=()=>{
@@ -373,15 +427,13 @@ function bind(){
  };
  byId('emissao-mes').addEventListener('change',alterarEmissao);
  byId('emissao-ano').addEventListener('change',alterarEmissao);
- byId('btn-emissao-atual').addEventListener('click',()=>{state.config.emissaoAuto=true;state.config.emissao=hojeISO().slice(0,7)+'-20';persist();renderEmissao();toast('Emissão definida para o dia 20 do mês atual.');});
- for(const key of Object.keys(state.config)){
-   const el=byId(key);if(!el)continue;el.addEventListener('input',()=>{state.config[key]=el.value;persist();renderCalendar();if(key==='feriados')updateTotals();});
- }
+
+
  byId('calendar-grid').addEventListener('click',ev=>{const btn=ev.target.closest('[data-cal-date]');if(!btn)return;const day=btn.dataset.calDate,sel=new Set(calendarSelected());if(sel.has(day))sel.delete(day);else sel.add(day);state.config.diasLote=[...sel].sort();persist();renderCalendar();});
  byId('mes-anterior').addEventListener('click',()=>changeMonth(-1));byId('mes-proximo').addEventListener('click',()=>changeMonth(1));
  byId('btn-uteis').addEventListener('click',()=>{const [y,m]=calendarMonth().split('-').map(Number),last=new Date(Date.UTC(y,m,0)).getUTCDate(),days=new Set(calendarSelected());for(let d=1;d<=last;d++){const dt=new Date(Date.UTC(y,m-1,d,12));if(dt.getUTCDay()>0&&dt.getUTCDay()<6)days.add(dateISO(dt));}state.config.diasLote=[...days].sort();persist();renderCalendar();});
  byId('btn-limpar-dias').addEventListener('click',()=>{state.config.diasLote=[];persist();renderCalendar();});
- byId('painel-calendario').addEventListener('click',ev=>{if(ev.target.closest('#btn-cancel-individual')){calendarIndividualId=null;renderCalendar();}});
+
  byId('btn-aplicar').addEventListener('click',openApplyModal);
  byId('modal-fechar').addEventListener('click',closeApplyModal);byId('modal-cancelar').addEventListener('click',closeApplyModal);
  byId('modal-aplicar').addEventListener('click',ev=>{if(ev.target===byId('modal-aplicar'))closeApplyModal();});
@@ -390,48 +442,41 @@ function bind(){
  byId('modal-pendentes').addEventListener('click',()=>{modalSelection=new Set(state.employees.filter(e=>!assigned(e)).map(e=>e.id));renderModal();});
  byId('modal-todos').addEventListener('click',()=>{modalSelection=new Set(state.employees.map(e=>e.id));renderModal();});
  byId('modal-nenhum').addEventListener('click',()=>{modalSelection.clear();renderModal();});byId('modal-confirmar').addEventListener('click',confirmApply);
- byId('search').addEventListener('input',()=>renderEmployees());
- document.querySelectorAll('.filter-pill').forEach(b=>b.addEventListener('click',()=>{employeeFilter=b.dataset.filter;renderEmployees();}));
+ byId('search').addEventListener('input',()=>{miniDrafts.clear();renderEmployees();});
+ document.querySelectorAll('.filter-pill').forEach(b=>b.addEventListener('click',()=>{miniDrafts.clear();employeeFilter=b.dataset.filter;renderEmployees();}));
  byId('select-all').addEventListener('change',e=>{for(const p of state.employees)if(assigned(p))p.active=e.target.checked;persist();renderEmployees();});
- byId('employee-list').addEventListener('click',e=>{
-  if(e.target.classList.contains('employee-check'))e.stopPropagation();
-  const btn=e.target.closest('[data-action]');if(!btn)return;
-  const wrapper=btn.closest('[data-worker-id]');const person=state.employees.find(p=>p.id===wrapper?.dataset.workerId);if(!person)return;
-  if(btn.dataset.action==='delete'){if(!window.confirm(`Excluir ${person.nome} do cadastro?`))return;state.employees=state.employees.filter(p=>p.id!==person.id);persist();renderEmployees();renderCalendar();toast('Funcionário excluído.');}
-  if(btn.dataset.action==='individual')exportIndividual(person);
-  if(btn.dataset.action==='calendar')editEmployeeCalendar(person);
-  if(btn.dataset.action==='clear-days')clearEmployee(person);
+ byId('employee-list').addEventListener('toggle',ev=>{
+  const card=ev.target.closest('details[data-worker-id]');if(!card||ev.target!==card)return;
+  const emp=state.employees.find(p=>p.id===card.dataset.workerId);if(!emp)return;
+  if(card.open)renderMiniCalendar(emp);
+  else miniDrafts.delete(emp.id); // Sair sem Aplicar descarta a edição não confirmada.
+ },true);
+ byId('employee-list').addEventListener('click',ev=>{
+  if(ev.target.classList.contains('employee-check'))ev.stopPropagation();
+  const btn=ev.target.closest('[data-action]');if(!btn)return;
+  const card=btn.closest('[data-worker-id]');const person=state.employees.find(p=>p.id===card?.dataset.workerId);if(!person)return;
+  const action=btn.dataset.action;
+  if(action==='individual'){exportIndividual(person);return;}
+  if(action==='mini-apply'){applyMiniCalendar(person);return;}
+  if(action==='mini-prev'||action==='mini-next'){
+   const d=ensureMiniDraft(person);d.month=shiftMiniMonth(d.month,action==='mini-prev'?-1:1);renderMiniCalendar(person);return;
+  }
+  if(action==='mini-day'){
+   const d=ensureMiniDraft(person),day=btn.dataset.date;const dates=new Set(d.dates);
+   dates.has(day)?dates.delete(day):dates.add(day);d.dates=uniqueDates([...dates]);renderMiniCalendar(person);return;
+  }
  });
- const onUpdate=(ev)=>{
-  const el=ev.target.closest('[data-key]');if(!el)return;
-  const wrapper=el.closest('[data-worker-id]');if(!wrapper)return;
-  const person=state.employees.find(p=>p.id===wrapper.dataset.workerId);if(!person)return;
-  person[el.dataset.key]=el.type==='checkbox'?el.checked:el.value;
-  persist();updateTotals();
- };
- byId('employee-list').addEventListener('input',onUpdate);byId('employee-list').addEventListener('change',onUpdate);
- const add=()=>{const name=window.prompt('Informe o nome completo do funcionário:');if(name===null)return;if(!name.trim()){toast('O nome não pode ficar vazio.');return;}if(state.employees.some(e=>normalizar(e.nome.trim())===normalizar(name.trim()))){toast('Já existe um funcionário com esse nome.');return;}const e=makeEmployee(name.trim(),state.config);state.employees.push(e);byId('search').value='';employeeFilter='all';persist();renderEmployees(e.id);document.querySelector(`[data-worker-id="${e.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});toast('Funcionário adicionado como pendente.');};
- byId('btn-add').addEventListener('click',add);byId('btn-add-bottom').addEventListener('click',add);
- byId('btn-proximo').addEventListener('click',()=>{if(!window.confirm('Iniciar um novo lote? Os funcionários continuarão cadastrados, mas ficarão pendentes. Os dias atuais de pagamento deixarão de valer neste lote. Salve um backup primeiro caso queira guardar o atual.'))return;
-   saveLot(true);state.config.inicio=shiftMonth(state.config.inicio);state.config.fim=shiftMonth(state.config.fim);state.config.mesCalendario=shiftMonth(state.config.mesCalendario+'-01').slice(0,7);state.config.diasLote=[];state.config.feriados='';calendarIndividualId=null;
-   for(const p of state.employees){p.statusDistribuicao='pendente';p.diasSelecionados=[];p.active=false;p.feriasInicio='';p.feriasFim='';p.descontos='0';p.diasManual='';p.observacao='';}
-   sessionTouched=true;fillSettings();persist();renderEmployees();toast('Novo lote iniciado: todos os funcionários estão pendentes de distribuição.');
+ byId('employee-list').addEventListener('change',ev=>{
+  if(!ev.target.classList.contains('employee-check'))return;
+  const card=ev.target.closest('[data-worker-id]');const emp=state.employees.find(p=>p.id===card?.dataset.workerId);
+  if(!emp||!assigned(emp))return;
+  emp.active=ev.target.checked;persist();updateTotals();
  });
- byId('btn-repetir').addEventListener('click',()=>{const saved=readTimed(LOT_KEY);if(!saved){toast('Não há lote salvo nas últimas 1 hora.');return;}if(!window.confirm('Repetir os dias e os funcionários do último lote salvo? Os lançamentos atuais serão substituídos.'))return;try{applyDraft(saved.draft);sessionTouched=true;calendarIndividualId=null;fillSettings();persist();renderEmployees();toast('Último lote recuperado. Confira os valores e dias antes de emitir.');}catch(err){toast('Não foi possível repetir o lote salvo.');}});
- byId('btn-salvar').addEventListener('click',()=>saveLot());
  byId('btn-docx').addEventListener('click',exportDocx);byId('btn-print').addEventListener('click',openPrint);
  byId('btn-backup').addEventListener('click',()=>{downloadBlob(JSON.stringify(state,null,2),'BACKUP_GESTOR_VALES.json','application/json;charset=utf-8');toast('Backup JSON baixado. Guarde o arquivo para recuperar os cadastros em outro navegador.');});
- byId('btn-import-top').addEventListener('click',()=>byId('file-import').click());
- byId('file-import').addEventListener('change',async ev=>{const file=ev.target.files?.[0];if(!file)return;try{
-   const data=JSON.parse(await file.text());const isLegacy=!data.schemaVersion;
-   const asInitial=isLegacy&&window.confirm('Arquivo de cadastro anterior detectado. Deseja importar os funcionários como PENDENTES, para escolher os dias pelo calendário?\n\nOK: importar somente os cadastros, sem valores anteriores.\nCancelar: preservar os pagamentos existentes.');
-   const loaded=validateState(data,asInitial);
-   if(!window.confirm(`Importar ${loaded.employees.length} funcionário(s)? Isso substituirá os cadastros atuais.`))return;
-   try{localStorage.removeItem(DRAFT_KEY);localStorage.removeItem(LOT_KEY);}catch(ignore){}
-   state=loaded;calendarIndividualId=null;sessionTouched=meaningfulDraft(createDraft(state));persist();fillSettings();renderEmployees();toast(asInitial?'Funcionários importados como pendentes. Selecione os dias no calendário.':'Cadastro importado.');
-  }catch(err){toast('Não foi possível importar: '+err.message);}finally{ev.target.value='';}});
+
 }
 
 if(typeof document!=='undefined')bind();
 // Exporta funções puras para testes de integridade em ambiente Node.js (sem afetar navegador).
-if(typeof module!=='undefined'&&module.exports){module.exports={makeZip,makeDocx,receiptPeriod,hojeISO,calcEmp,cents,numeroExtenso,valorExtenso,dateUTC,fmtDate,csvContent,defaultState,setState:(v)=>{state=v;},getState:()=>state,dataEmissaoAtual,mesAnoEmissao,validateState,fullDate};}
+if(typeof module!=='undefined'&&module.exports){module.exports={makeZip,makeDocx,receiptPeriod,hojeISO,calcEmp,cents,numeroExtenso,valorExtenso,dateUTC,fmtDate,csvContent,defaultState,setState:(v)=>{state=v;},getState:()=>state,dataEmissaoAtual,mesAnoEmissao,validateState,fullDate,commitIndividualDays,uniqueDates,createDraft,meaningfulDraft};}
