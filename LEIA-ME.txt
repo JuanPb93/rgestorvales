@@ -1,4 +1,4 @@
-GESTOR DE VALES v1.3.1 — Cadastro fixo dos 14 funcionários
+GESTOR DE VALES v1.3.2 — Cadastro fixo dos 14 funcionários
 
 INSTALAÇÃO NO GITHUB PAGES
 1. Extraia o arquivo ZIP.
@@ -18,3 +18,6 @@ REGRAS E RECURSOS PRESERVADOS
 
 PRIVACIDADE — LEIA
 O GitHub Pages publica arquivos estáticos. Como os 14 nomes estão em funcionarios.js, QUALQUER PESSOA com acesso aos arquivos publicados pode ler esses nomes, mesmo que não apareçam diretamente na tela inicial. Não utilize esta abordagem caso seja necessário manter o cadastro confidencial. Os recibos gerados e dias atribuídos não ficam publicados pelo site.
+
+AJUSTE v1.3.2
+- Removido apenas o botão Salvar backup do cabeçalho. O indicador verde e o texto 14 funcionários fixos no sistema permanecem.

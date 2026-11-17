@@ -487,7 +487,6 @@ function bind(){
   emp.active=ev.target.checked;persist();updateTotals();
  });
  byId('btn-docx').addEventListener('click',exportDocx);byId('btn-print').addEventListener('click',openPrint);
- byId('btn-backup').addEventListener('click',()=>{downloadBlob(JSON.stringify(state,null,2),'BACKUP_GESTOR_VALES.json','application/json;charset=utf-8');toast('Backup de sessão baixado. A lista fixa dos 14 funcionários acompanha o sistema.');});
 
 }
 
