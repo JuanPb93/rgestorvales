@@ -1,32 +1,20 @@
-GESTOR DE VALES v1.3 — Meneses e Meneses Ltda.
+GESTOR DE VALES v1.3.1 — Cadastro fixo dos 14 funcionários
 
-ATUALIZAÇÃO PARA GITHUB PAGES
-1. Faça uma cópia de segurança dos dados na versão anterior (botão "Salvar backup").
-2. Extraia o ZIP e substitua index.html, style.css e app.js no MESMO repositório.
-3. Não mude o endereço publicado: o armazenamento do navegador depende da origem (domínio/protocolo).
-4. Abra o Gestor de Vales normalmente. Os funcionários cadastrados na versão anterior permanecem salvos no mesmo navegador, mas os dias iniciarão zerados.
+INSTALAÇÃO NO GITHUB PAGES
+1. Extraia o arquivo ZIP.
+2. Publique os quatro arquivos index.html, style.css, app.js e funcionarios.js NA MESMA PASTA do repositório rgestorvales.
+3. Mantenha os nomes dos arquivos. O index.html carrega funcionarios.js ANTES de app.js.
+4. Abra o site no celular, PC ou outro dispositivo: os 14 nomes aparecerão automaticamente. Não é necessário importar JSON nem ter utilizado o navegador antes.
+5. Se estiver atualizando uma publicação anterior, recarregue a página após o GitHub publicar os novos arquivos.
 
-COMO UTILIZAR
-- Selecione os dias no calendário principal e clique em "Aplicar e escolher funcionários" para distribuir o mesmo grupo de dias a vários colaboradores.
-- Clique no nome de um funcionário para abrir seu mini calendário. Navegue nos meses, marque/desmarque os dias e clique em "Aplicar alterações" para gravar SOMENTE os dias dele.
-- Alterações feitas no mini calendário não interferem nos demais funcionários e não são registradas até confirmar. Fechar o cartão sem aplicar descarta a edição provisória.
-- Emitir Recibos em Word gera DOCX; Emitir Recibos em PDF abre a janela de impressão do navegador (opção Salvar como PDF).
-- O dia de emissão do recibo é sempre 20; o mês e o ano abrem com os valores atuais e podem ser ajustados na seção de documentos.
+REGRAS E RECURSOS PRESERVADOS
+- A lista tem sempre os mesmos 14 funcionários. Não há inclusão, exclusão nem importação pela interface.
+- Nomes padronizados conforme o recibo corrigido. Para mudar nomes no futuro, edite funcionarios.js e publique a atualização.
+- Valor diário: transporte R$ 8,00 + alimentação R$ 10,00.
+- Calendário geral para aplicar dias a um grupo; mini calendário por funcionário com confirmação em "Aplicar alterações".
+- Emissão de recibos Word e botão PDF (janela de impressão), emissão no dia 20, com mês e ano selecionáveis.
+- Ao abrir/atualizar, os dias de pagamento aparecem zerados. A sessão anterior pode ser recuperada manualmente por até 1 hora no mesmo navegador.
+- Os dias e a sessão de um dispositivo não sincronizam com os outros. Apenas a lista dos 14 nomes é comum a todos, por estar no pacote do site.
 
-O QUE MUDOU
-- Removidos: área "Empresa, valores diários e feriados", botões de gerenciamento de lotes e explicação abaixo, inclusão/importação/remoção de funcionários, campos de férias e descontos, edição de nome e valores, e botão "Mês atual".
-- Lista de funcionários fixa: não é possível cadastrar ou excluir pessoas pela interface.
-- Valor diário fixo: R$ 8,00 de transporte + R$ 10,00 de alimentação.
-- Mini calendário por funcionário com botão "Aplicar alterações".
-- Mantidos: recibo Word individual, emissão em lote Word, impressão/PDF, cadastros em armazenamento local e recuperação dos lançamentos por 1 hora após a última alteração.
-
-IMPORTANTE — CADASTRO FIXO E PRIVACIDADE
-Os nomes dos funcionários NÃO estão dentro do código público do ZIP, para evitar exposição no GitHub Pages.
-O sistema utiliza os cadastros que já estavam salvos no navegador na mesma URL.
-Em um navegador novo, onde nunca houve cadastro, a lista ficará vazia. Antes de adotar esta versão num computador novo, primeiro abra a versão anterior no endereço definitivo, importe o seu arquivo de cadastro privado e só depois atualize para a v1.3. Como não há botão de importação na v1.3, a configuração inicial em um navegador novo deve ser feita pela versão anterior.
-Não publique JSON de cadastro ou backups no repositório público.
-
-SEGURANÇA DOS LANÇAMENTOS
-- F5, Ctrl+R ou nova abertura zera os lançamentos exibidos, mas não apaga o cadastro de funcionários.
-- A sessão anterior só retorna clicando em "Recuperar sessão", disponível por até 1 hora após a última alteração salva.
-- Os dados locais não sincronizam entre diferentes navegadores/computadores e podem ser removidos ao limpar o armazenamento do site. Faça backups dos cadastros quando necessário.
+PRIVACIDADE — LEIA
+O GitHub Pages publica arquivos estáticos. Como os 14 nomes estão em funcionarios.js, QUALQUER PESSOA com acesso aos arquivos publicados pode ler esses nomes, mesmo que não apareçam diretamente na tela inicial. Não utilize esta abordagem caso seja necessário manter o cadastro confidencial. Os recibos gerados e dias atribuídos não ficam publicados pelo site.

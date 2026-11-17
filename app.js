@@ -10,9 +10,16 @@ const DRAFT_KEY = 'gestor_vales_recuperacao_1h_v1';
 const DRAFT_DURATION_MS = 60 * 60 * 1000;
 const FIXED_VT = '8,00';
 const FIXED_AA = '10,00';
-// GitHub Pages: use localStorage no navegador do usuário; NÃO há sincronização entre PCs.
-// Por privacidade, nomes não ficam no código publicado. A lista fixa é recuperada do armazenamento já existente no mesmo site.
-const NOMES_MODELO = []; // Lista original permanece apenas no navegador do usuário.
+// Os 14 nomes vêm de funcionarios.js (mesma pasta do index.html) e são iguais em qualquer dispositivo.
+// Apenas dias/recibos e preferências de sessão dependem do armazenamento local do navegador.
+const EQUIPE_FIXA = (typeof globalThis !== 'undefined' && Array.isArray(globalThis.GESTOR_VALES_FUNCIONARIOS))
+  ? globalThis.GESTOR_VALES_FUNCIONARIOS.filter(f => f && typeof f.id === 'string' && typeof f.nome === 'string' && f.nome.trim())
+  : [];
+// Nomes históricos da versão anterior são reconhecidos para migração sem duplicar colaboradores.
+const NOMES_ANTIGOS = {
+  'f471ce15dce8b': ['Alrilene Albuquerque Rodrigues'],
+  'f913257dbbf86': ['Juan Pablo de Carvalho de Moura']
+};
 const SCHEDULES = {semana:[1,2,3,4,5],sabado:[1,2,3,4,5,6],todos:[0,1,2,3,4,5,6]};
 const $ = (selector) => document.querySelector(selector);
 const byId = (id) => document.getElementById(id);
@@ -41,7 +48,7 @@ function parseHoliday(s){const v=texto(s).trim();if(dateUTC(v))return v;const m=
 function holidaysSet(){return new Set(texto(state.config.feriados).split(/[\n,;]+/).map(parseHoliday).filter(Boolean));}
 function shiftMonth(iso){const d=dateUTC(iso);if(!d)return iso;const y=d.getUTCFullYear(),m=d.getUTCMonth()+1,day=d.getUTCDate();const last=new Date(Date.UTC(y,m+1,0,12)).getUTCDate();return dateISO(new Date(Date.UTC(y,m,Math.min(day,last),12)));}
 function makeEmployee(name,config){return {id:idNovo(),nome:name,active:false,statusDistribuicao:'pendente',diasSelecionados:[],inicio:config.inicio,fim:config.fim,vt:config.vt,aa:config.aa,escala:'semana',feriasInicio:'',feriasFim:'',descontos:'0',diasManual:'',observacao:''};}
-function defaultState(){const mes=hojeISO().slice(0,7),inicio=mes+'-21',fim=shiftMonth(inicio).slice(0,7)+'-20';const config={empresa:'Meneses e Meneses Ltda.',cidade:'Teresina/PI',emissao:mes+'-20',emissaoAuto:true,inicio,fim,mesCalendario:mes,diasLote:[],vt:'8,00',aa:'10,00',descricao:'vale refeição e vale transporte',feriados:''};return {schemaVersion:2,config,employees:NOMES_MODELO.map(n=>makeEmployee(n,config))};}
+function defaultState(){const mes=hojeISO().slice(0,7),inicio=mes+'-21',fim=shiftMonth(inicio).slice(0,7)+'-20';const config={empresa:'Meneses e Meneses Ltda.',cidade:'Teresina/PI',emissao:mes+'-20',emissaoAuto:true,inicio,fim,mesCalendario:mes,diasLote:[],vt:'8,00',aa:'10,00',descricao:'vale refeição e vale transporte',feriados:''};return {schemaVersion:2,config,employees:EQUIPE_FIXA.map(f=>({...makeEmployee(f.nome,config),id:f.id,nome:f.nome}))};}
 function validateState(candidate,asInitial=false){
  if(!candidate||!candidate.config||!Array.isArray(candidate.employees))throw new Error('Backup sem estrutura válida.');
  const base=defaultState();const config={...base.config,...candidate.config,vt:FIXED_VT,aa:FIXED_AA};
@@ -52,10 +59,17 @@ function validateState(candidate,asInitial=false){
  if(config.descricao==='auxílio-alimentação e vale-transporte')config.descricao='vale refeição e vale transporte';
  if(!/^\d{4}-\d{2}$/.test(config.mesCalendario))config.mesCalendario=String(config.inicio||'2026-11').slice(0,7);
  config.diasLote=Array.isArray(config.diasLote)?uniqueDates(config.diasLote):[];
- const employees=candidate.employees.map(x=>{
-   const emp={...makeEmployee('',config),...x,id:typeof x.id==='string'?x.id:idNovo(),vt:FIXED_VT,aa:FIXED_AA};
+ // O cadastro empacotado é a fonte da verdade: nomes/IDs não vêm do localStorage.
+ // Ainda aproveita campos antigos de um funcionário quando há correspondência por ID ou nome.
+ const anteriores = candidate.employees;
+ const employees=EQUIPE_FIXA.map(f=>{
+   const nomesValidos = [f.nome,...(NOMES_ANTIGOS[f.id]||[])].map(normalizar);
+   const x = anteriores.find(p=>p && p.id===f.id)
+      || anteriores.find(p=>p && nomesValidos.includes(normalizar(p.nome)))
+      || {};
+   const emp={...makeEmployee(f.nome,config),...x,id:f.id,nome:f.nome,vt:FIXED_VT,aa:FIXED_AA};
    if(asInitial){emp.statusDistribuicao='pendente';emp.diasSelecionados=[];emp.active=false;emp.descontos='0';emp.diasManual='';emp.feriasInicio='';emp.feriasFim='';}
-   else{emp.statusDistribuicao=x.statusDistribuicao==='pendente'?'pendente':'definido';emp.active=!!x.active&&emp.statusDistribuicao==='definido';emp.diasSelecionados=Array.isArray(x.diasSelecionados)?uniqueDates(x.diasSelecionados):null;}
+   else{emp.statusDistribuicao=x.statusDistribuicao==='definido'?'definido':'pendente';emp.active=!!x.active&&emp.statusDistribuicao==='definido';emp.diasSelecionados=Array.isArray(x.diasSelecionados)?uniqueDates(x.diasSelecionados):[];}
    return emp;
  });
  return {schemaVersion:2,config,employees};
@@ -301,7 +315,7 @@ function renderEmployees(openId){
     </div>
    </div>
   </details>`;
- }).join(''):'<p class="hint" style="padding:25px 6px">Nenhum funcionário nesta visualização. Altere o filtro ou confira se o cadastro já está salvo neste navegador.</p>';
+ }).join(''):'<p class="hint" style="padding:25px 6px">Nenhum funcionário corresponde à busca ou ao filtro atual.</p>';
  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.toggle('active',b.dataset.filter===employeeFilter));
  updateTotals();
  if(openId){const emp=state.employees.find(e=>e.id===openId);if(emp)renderMiniCalendar(emp);}
@@ -389,12 +403,12 @@ w.document.close();saveLot(true);toast('Janela de impressão aberta. Selecione �
 
 function modalCount(){const count=modalSelection.size;byId('modal-selection-count').textContent=`${count} funcionário(s) selecionado(s)`;byId('modal-confirmar').disabled=count===0;}
 function renderModal(){
- byId('modal-employee-list').innerHTML=state.employees.length?state.employees.map(e=>`<label class="modal-person"><input type="checkbox" data-modal-worker="${htmlEscape(e.id)}" ${modalSelection.has(e.id)?'checked':''}><span class="modal-person-name"><b>${htmlEscape(e.nome)}</b><small>${assigned(e)?'Já tem dias definidos · pode substituir com confirmação':'Pendente · sem dias definidos'}</small></span><span class="status-pill ${assigned(e)?'done':'pending'}">${assigned(e)?'Definido':'Pendente'}</span></label>`).join(''):'<p class="hint">Nenhum funcionário cadastrado neste navegador.</p>';
+ byId('modal-employee-list').innerHTML=state.employees.length?state.employees.map(e=>`<label class="modal-person"><input type="checkbox" data-modal-worker="${htmlEscape(e.id)}" ${modalSelection.has(e.id)?'checked':''}><span class="modal-person-name"><b>${htmlEscape(e.nome)}</b><small>${assigned(e)?'Já tem dias definidos · pode substituir com confirmação':'Pendente · sem dias definidos'}</small></span><span class="status-pill ${assigned(e)?'done':'pending'}">${assigned(e)?'Definido':'Pendente'}</span></label>`).join(''):'<p class="hint">Não foi possível carregar a lista fixa de funcionários.</p>';
  const count=calendarSelected().length;byId('modal-info').textContent=`${count} dia(s) marcado(s) no calendário · ${brl(calendarSelected().filter(d=>!holidaysSet().has(d)).length*(cents(state.config.vt)+cents(state.config.aa)))} por funcionário antes de ajustes individuais.`;modalCount();
 }
 function openApplyModal(){
  if(!calendarSelected().length){toast('Selecione pelo menos um dia no calendário.');return;}
- if(!state.employees.length){toast('Nenhum funcionário salvo neste navegador. Verifique o cadastro antes de atualizar.');return;}
+ if(!state.employees.length){toast('Lista de funcionários indisponível. Verifique se funcionarios.js foi publicado.');return;}
  modalSelection=new Set();
  for(const e of state.employees.filter(e=>!assigned(e)))modalSelection.add(e.id);
  renderModal();byId('modal-aplicar').hidden=false;document.body.classList.add('modal-open');byId('modal-confirmar').focus();
@@ -473,7 +487,7 @@ function bind(){
   emp.active=ev.target.checked;persist();updateTotals();
  });
  byId('btn-docx').addEventListener('click',exportDocx);byId('btn-print').addEventListener('click',openPrint);
- byId('btn-backup').addEventListener('click',()=>{downloadBlob(JSON.stringify(state,null,2),'BACKUP_GESTOR_VALES.json','application/json;charset=utf-8');toast('Backup JSON baixado. Guarde o arquivo para recuperar os cadastros em outro navegador.');});
+ byId('btn-backup').addEventListener('click',()=>{downloadBlob(JSON.stringify(state,null,2),'BACKUP_GESTOR_VALES.json','application/json;charset=utf-8');toast('Backup de sessão baixado. A lista fixa dos 14 funcionários acompanha o sistema.');});
 
 }
 
